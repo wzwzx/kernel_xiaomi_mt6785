@@ -1059,6 +1059,19 @@ static ssize_t extract_crng_user(void __user *buf, size_t nbytes)
 	return ret;
 }
 
+static void __cold process_random_ready_list(void)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&random_ready_chain_lock, flags);
+	raw_notifier_call_chain(&random_ready_chain, 0, NULL);
+	spin_unlock_irqrestore(&random_ready_chain_lock, flags);
+}
+
+#define warn_unseeded_randomness() \
+	if (IS_ENABLED(CONFIG_WARN_ALL_UNSEEDED_RANDOM) && !crng_ready()) \
+		printk_deferred(KERN_NOTICE "random: %s called from %pS with crng_init=%d\n", \
+				__func__, (void *)_RET_IP_, crng_init)
 
 /*********************************************************************
  *
